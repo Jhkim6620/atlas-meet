@@ -1,0 +1,10 @@
+services:
+  app:
+    environment:
+      ATLAS_STT_PROVIDER: openai
+      OPENAI_API_KEY_FILE: /run/secrets/openai_api_key
+    secrets:
+      - openai_api_key
+secrets:
+  openai_api_key:
+    file: ./.atlas-secrets/openai-api-key

@@ -1,0 +1,10 @@
+*
+!package.json
+!package-lock.json
+!server.mjs
+!transcribe.mjs
+!scripts/
+scripts/*
+!scripts/setup-speech.sh
+!public/
+!public/**

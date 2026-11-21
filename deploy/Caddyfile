@@ -1,0 +1,9 @@
+{
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$MEET_DOMAIN} {
+	reverse_proxy app:4317
+}

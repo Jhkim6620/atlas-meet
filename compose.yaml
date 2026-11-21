@@ -1,0 +1,81 @@
+name: atlas-meet
+
+services:
+  app:
+    build: .
+    init: true
+    restart: unless-stopped
+    environment:
+      TURN_PUBLIC_HOST: ${MEET_DOMAIN:?Set MEET_DOMAIN}
+      TURN_SHARED_SECRET_FILE: /run/secrets/turn_shared_secret
+      ROOM_CREATION_KEY_FILE: /run/secrets/room_creation_key
+    secrets:
+      - turn_shared_secret
+      - room_creation_key
+    volumes:
+      - rooms:/var/lib/atlas-meet
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:4317/api/status', {signal: AbortSignal.timeout(3000)})
+          .then(async response => response.ok && (await response.json()).transcription?.available)
+          .then(available => process.exit(available ? 0 : 1))
+          .catch(() => process.exit(1))
+      interval: 20s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  caddy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      MEET_DOMAIN: ${MEET_DOMAIN:?Set MEET_DOMAIN}
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  turn:
+    image: coturn/coturn:4.19.2-r0
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      MEET_DOMAIN: ${MEET_DOMAIN:?Set MEET_DOMAIN}
+      TURN_PUBLIC_IP: ${TURN_PUBLIC_IP:?Set TURN_PUBLIC_IP}
+      TURN_RELAY_IP: ${TURN_RELAY_IP:?Set TURN_RELAY_IP}
+    entrypoint: ["/bin/sh", "/etc/atlas-meet/turn-start.sh"]
+    command: []
+    volumes:
+      - ./deploy/turn-start.sh:/etc/atlas-meet/turn-start.sh:ro
+    secrets:
+      - turn_shared_secret
+    tmpfs:
+      - /tmp:mode=1777
+      - /var/lib/coturn:mode=1777
+    healthcheck:
+      test: ["CMD-SHELL", "turnutils_stunclient -p 3478 \"$$TURN_RELAY_IP\" 2>&1 | grep -q 'UDP reflexive addr'"]
+      interval: 30s
+      timeout: 6s
+      start_period: 10s
+      retries: 3
+
+secrets:
+  turn_shared_secret:
+    file: ./.atlas-secrets/turn-shared-secret
+  room_creation_key:
+    file: ./.atlas-secrets/room-creation-key
+
+volumes:
+  rooms:
+  caddy_data:
+  caddy_config:

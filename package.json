@@ -1,0 +1,12 @@
+{
+  "name": "atlas-meet",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.mjs",
+    "setup:speech": "sh scripts/setup-speech.sh"
+  },
+  "dependencies": { "ws": "^8.23.0" }
+}
